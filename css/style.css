@@ -370,6 +370,11 @@ html[data-theme="dark"] #toggle-mode-btn i {
     color: #ea580c;
 }
 
+.password-gen-cover {
+    background: linear-gradient(135deg, #ecfdf5 0%, #a7f3d0 100%);
+    color: #059669;
+}
+
 .card-content {
     padding: 1.5rem;
     flex: 1;
