@@ -1095,5 +1095,15 @@
     "link": "./projects/Sudoku_Solver/index.html",
     "icon": "ri-grid-fill",
     "coverStyle": "background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%); color: white;"
-  }
+  },
+  {
+  "title": "Sorting Visualizer",
+  "category": "utility",
+  "description": "Interactive visualizer for sorting algorithms (Bubble, Merge, Quick, etc.).",
+  "tech": ["HTML", "CSS", "JS"],
+  "link": "./projects/Sorting_Visualizer/index.html",
+  "icon": "ri-bar-chart-grouped-line",
+  "coverStyle": "background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white;"
+}
+
 ]
