@@ -1083,6 +1083,19 @@
     "icon": "ri-list-check",
     "coverStyle": "background: #8b5cf6; color: white;"
   },
+   {
+    "title": "Get Mouse Position",
+    "category": "utility",
+    "description": "Track and display mouse coordinates.",
+    "tech": [
+      "HTML",
+      "CSS",
+      "JS"
+    ],
+    "link": "./projects/Get-Mouse-Position/index.html",
+    "icon": "ri-cursor-line",
+    "coverStyle": "background: #8b5cf6; color: white;"
+  },
   {
     "title": "Tower of Hanoi",
     "category": "game",
