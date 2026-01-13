@@ -2623,6 +2623,19 @@
   "link": "./projects/github-repo-analyzer/index.html",
   "icon": "ri-github-line",
   "coverStyle": "background: linear-gradient(135deg, #2f2f2f 0%, #6b7280 100%); color: white;"
-}
+},
+  {
+    "title": "Code Editor ",
+    "category": "utility",
+    "description": "Write HTML/JS/CSS → See Live Preview | Save Snippets",
+    "tech": [
+      "HTML",
+      "CSS",
+      "JS"
+    ],
+    "link": "./projects/MiniCodeEditor/index.html",
+    "icon": "ri-terminal-box-line",
+    "coverStyle": "background: #1e1e1e; color: #4fc3f7;"
+  }
 
 ]
