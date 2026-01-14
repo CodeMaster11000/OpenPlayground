@@ -845,7 +845,7 @@
     ],
     "link": "./projects/digital-clock/index.html",
     "icon": "ri-time-line",
-    "coverClass": "clock-cover"
+    "coverClass": "clock-cover",
     "link": "./projects/age-calculator/index.html",
     "icon": "ri-calendar-line",
     "coverStyle": "background: #8b5cf6; color: white;"
@@ -877,7 +877,7 @@
     ],
     "link": "./projects/image-slider/index.html",
     "icon": "ri-slideshow-line",
-    "coverStyle": "background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%); color: #4338ca;"
+    "coverStyle": "background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%); color: #4338ca;",
     "link": "./projects/bmi-calculator/index.html",
     "icon": "ri-heart-pulse-line",
     "coverStyle": "background: #ec4899; color: white;"
@@ -907,7 +907,7 @@
     ],
     "link": "./projects/password-strength-checker/index.html",
     "icon": "ri-shield-check-line",
-    "coverClass": "password-cover"
+    "coverClass": "password-cover",
     "link": "./projects/calculator/index.html",
     "icon": "ri-calculator-line",
     "coverStyle": "background: #374151; color: #f9fafb;"
@@ -941,7 +941,7 @@
     ],
     "link": "./projects/quote-generator/index.html",
     "icon": "ri-chat-quote-line",
-    "coverClass": "quote-cover"
+    "coverClass": "quote-cover",
     "link": "./projects/chat-app/index.html",
     "icon": "ri-chat-3-line",
     "coverStyle": "background: #0ea5e9; color: white;"
@@ -958,7 +958,7 @@
     ],
     "link": "./projects/todo-list/index.html",
     "icon": "ri-list-check",
-    "coverClass": "todo-cover"
+    "coverClass": "todo-cover",
     "link": "./projects/code-editor/index.html",
     "icon": "ri-code-s-slash-line",
     "coverStyle": "background: #1e1e1e; color: #4ec9b0;"
@@ -975,7 +975,7 @@
     ],
     "link": "./projects/typing-speed-test/index.html",
     "icon": "ri-keyboard-line",
-    "coverClass": "typing-cover"
+    "coverClass": "typing-cover",
     "link": "./projects/color-code-converter/index.html",
     "icon": "ri-contrast-2-line",
     "coverStyle": "background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;"
@@ -1571,6 +1571,22 @@
     "icon": "ri-gamepad-line",
     "coverStyle": "background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); color: white;"
   },
+
+  {
+    "title": "Pattern Predictor Game",
+    "category": "game",
+    "description": "An interactive pattern prediction game that challenges users to identify and predict visual and logical patterns with increasing difficulty, featuring smooth animations and modern UI.",
+    "tech": [
+    "HTML",
+    "CSS",
+    "JavaScript"
+  ],
+    "link": "./projects/pattern-predictor/index.html",
+    "icon": "ri-brain-line",
+    "coverStyle": "background: linear-gradient(135deg, #7c3aed, #22d3ee); color: white;"
+  },
+
+  
   {
     "title": "Truth or Dare",
     "category": "game",
