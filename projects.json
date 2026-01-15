@@ -3210,8 +3210,21 @@
   "link": "./projects/cognitive-load-visualizer/index.html",
   "icon": "ri-brain-line",
   "coverStyle": "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;"
-}
+},
 
+{
+  "title": "Carbon Choice Comparator",
+  "category": "experimental",
+  "description": "Interactive tool that compares the carbon impact of everyday choices like transport, food, and energy using clear visual comparisons.",
+  "tech": [
+    "HTML",
+    "CSS",
+    "JS"
+  ],
+  "link": "./projects/carbon-choice-comparator/index.html",
+  "icon": "ri-leaf-line",
+  "coverStyle": "background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%); color: white;"
+}
 
 
 
