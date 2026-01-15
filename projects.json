@@ -17,6 +17,22 @@
     "coverStyle": "background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 50%, #c4b5fd 100%); color: white;"
   },
   {
+  "title": "365 Days No-Zero Tracker",
+  "category": "productivity",
+  "difficulty": "Beginner",
+  "description": "A visual productivity tracker based on the No-Zero Days philosophy. Mark daily progress, maintain streaks, view monthly calendars, and stay motivated with dynamic quotes.",
+  "tech": [
+    "HTML5",
+    "CSS3",
+    "JavaScript",
+    "LocalStorage",
+    "Date API"
+  ],
+  "link": "./projects/NoZeroTracker/index.html",
+  "icon": "ri-calendar-check-line",
+  "coverStyle": "background: linear-gradient(135deg, #b5eaea 0%, #a8d8ea 50%, #ffd3b6 100%); color: #5a6b8c;"
+},
+  {
   "title": "Random Mini Challenge Generator",
   "category": "productivity",
   "description": "Generate small, achievable challenges to encourage healthy breaks with friendly UI and progress tracking.",
