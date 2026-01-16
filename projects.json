@@ -3441,6 +3441,17 @@
   "link": "./projects/CPU Scheduling Visualizer/index.html",
   "icon": "ri-cpu-line",
   "coverStyle": "background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #020617 100%); color: #e5e7eb;"
+},
+{
+  "title": "Brainforge",
+  "category": "utility",
+  "difficulty": "Advanced",
+  "description": "An interactive browser-based project focused on training logic, reasoning, and cognitive patterns.",
+  "tech": ["HTML", "CSS", "JavaScript"],
+  "link": "./projects/brainforge/index.html",
+  "icon": "ri-brain-line",
+  "coverStyle": "background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #e0f2fe 100%); color: #312e81;"
 }
+
 
 ]
