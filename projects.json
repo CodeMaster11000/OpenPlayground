@@ -6473,6 +6473,16 @@
   "icon": "ri-github-line",
   "coverStyle": "background: linear-gradient(135deg, #24292e 0%, #57606a 100%);"
 },
+  {
+    "title": "Advanced Reaction Time",
+    "category": "game",
+    "difficulty": "Intermediate",
+    "description": "Test and improve your reaction speed with advanced metrics, multiple modes, and detailed statistics. Includes visual and audio cues, leaderboard, and progress tracking.",
+    "tech": ["HTML", "CSS", "JavaScript"],
+    "link": "./projects/advanced reaction time/index.html",
+    "icon": "ri-flashlight-line",
+    "coverStyle": "background: linear-gradient(135deg, #f0abfc 0%, #a7f3d0 100%); color: #1e293b;"
+  },
 {
   "title": "Instagram Bio Suggestion",
   "category": "utility",
