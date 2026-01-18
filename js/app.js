@@ -20,11 +20,12 @@ class ProjectManager {
         this.state = {
             allProjects: [],
             visibilityEngine: null,
-            viewMode: 'card', // 'card' or 'list'
+            viewMode: 'card',
             currentPage: 1,
             initialized: false
         };
 
+        this.elements = null;
         window.projectManagerInstance = this;
     }
 
@@ -33,7 +34,8 @@ class ProjectManager {
 
         console.log("🚀 ProjectManager: Initializing...");
 
-        // Initial setup
+        // Cache DOM elements once
+        this.elements = this.getElements();
         this.setupEventListeners();
         await this.fetchProjects();
 
@@ -42,7 +44,7 @@ class ProjectManager {
     }
 
     /* -----------------------------------------------------------
-     * DOM Element Selection
+     * DOM Element Selection (cached once)
      * ----------------------------------------------------------- */
     getElements() {
         return {
@@ -60,18 +62,23 @@ class ProjectManager {
     }
 
     /* -----------------------------------------------------------
-     * Data Management
+     * Data Management - NEW MODULAR SYSTEM
+     * Each project has its own project.json file
      * ----------------------------------------------------------- */
     async fetchProjects() {
         try {
-            const response = await fetch('./projects.json');
-            if (!response.ok) throw new Error('Failed to fetch projects');
+            // Try new modular system first (project-manifest.json)
+            let projects = await this.fetchFromManifest();
 
-            const data = await response.json();
+            // Fallback to legacy projects.json if manifest fails
+            if (!projects || projects.length === 0) {
+                console.log('⚠️ Manifest not found, trying legacy projects.json...');
+                projects = await this.fetchFromLegacyJson();
+            }
 
-            // Deduplicate and validate
+            // Deduplicate projects
             const seen = new Set();
-            this.state.allProjects = data.filter(project => {
+            this.state.allProjects = projects.filter(project => {
                 if (!project.title || !project.link) return false;
                 const key = project.title.toLowerCase();
                 if (seen.has(key)) return false;
@@ -79,13 +86,10 @@ class ProjectManager {
                 return true;
             });
 
-            // Update UI count
-            const elements = this.getElements();
-            if (elements.projectCount) {
-                elements.projectCount.textContent = `${this.state.allProjects.length}+`;
+            if (this.elements.projectCount) {
+                this.elements.projectCount.textContent = `${this.state.allProjects.length}+`;
             }
 
-            // Initialize Visibility Engine
             this.state.visibilityEngine = new ProjectVisibilityEngine(this.state.allProjects);
             this.state.visibilityEngine.state.itemsPerPage = this.config.ITEMS_PER_PAGE;
 
@@ -94,10 +98,61 @@ class ProjectManager {
 
         } catch (error) {
             console.error('❌ ProjectManager Error:', error);
-            const elements = this.getElements();
-            if (elements.projectsGrid) {
-                elements.projectsGrid.innerHTML = `<div class="error-msg">Failed to load projects.</div>`;
+            if (this.elements.projectsGrid) {
+                this.elements.projectsGrid.innerHTML =
+                    `<div class="error-msg">Failed to load projects. Please refresh.</div>`;
             }
+        }
+    }
+
+    /**
+     * Fetch projects using the new manifest system
+     * Each project has its own project.json file
+     */
+    async fetchFromManifest() {
+        try {
+            const manifestResponse = await fetch('./project-manifest.json');
+            if (!manifestResponse.ok) return null;
+
+            const manifest = await manifestResponse.json();
+            console.log(`📋 Loading ${manifest.count} projects from manifest...`);
+
+            // Load all individual project.json files in parallel
+            const projectPromises = manifest.projects.map(async (entry) => {
+                try {
+                    const response = await fetch(entry.path);
+                    if (!response.ok) return null;
+
+                    const projectData = await response.json();
+                    // Add the link from manifest (ensures correct path)
+                    projectData.link = entry.link;
+                    return projectData;
+                } catch (e) {
+                    console.warn(`⚠️ Failed to load ${entry.folder}/project.json`);
+                    return null;
+                }
+            });
+
+            const results = await Promise.all(projectPromises);
+            return results.filter(p => p !== null);
+
+        } catch (e) {
+            console.warn('Manifest load failed:', e.message);
+            return null;
+        }
+    }
+
+    /**
+     * Fallback: Load from legacy centralized projects.json
+     */
+    async fetchFromLegacyJson() {
+        try {
+            const response = await fetch('./projects.json');
+            if (!response.ok) throw new Error('Failed to fetch projects');
+            return await response.json();
+        } catch (e) {
+            console.error('Legacy JSON failed:', e.message);
+            return [];
         }
     }
 
@@ -105,54 +160,49 @@ class ProjectManager {
      * Event Handling
      * ----------------------------------------------------------- */
     setupEventListeners() {
-        const elements = this.getElements();
+        const el = this.elements;
 
-        // Search
-        if (elements.searchInput) {
-            elements.searchInput.addEventListener('input', (e) => {
-                this.state.visibilityEngine.setSearchQuery(e.target.value);
+        if (el.searchInput) {
+            el.searchInput.addEventListener('input', (e) => {
+                this.state.visibilityEngine?.setSearchQuery(e.target.value);
                 this.state.currentPage = 1;
                 this.render();
             });
         }
 
-        // Sort
-        if (elements.sortSelect) {
-            elements.sortSelect.addEventListener('change', (e) => {
+        if (el.sortSelect) {
+            el.sortSelect.addEventListener('change', () => {
                 this.state.currentPage = 1;
                 this.render();
             });
         }
 
-        // Category Filters
-        if (elements.filterBtns) {
-            elements.filterBtns.forEach(btn => {
+        if (el.filterBtns) {
+            el.filterBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const category = btn.dataset.filter;
+                    el.filterBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
 
-                    // Update active class
-                    elements.filterBtns.forEach(b => b.classList.toggle('active', b === btn));
-
-                    this.state.visibilityEngine.setCategory(category);
+                    const filter = btn.dataset.filter;
+                    this.state.visibilityEngine?.setCategory(filter);
                     this.state.currentPage = 1;
                     this.render();
                 });
             });
         }
 
-        // View Toggles
-        if (elements.cardViewBtn && elements.listViewBtn) {
-            elements.cardViewBtn.addEventListener('click', () => this.setViewMode('card'));
-            elements.listViewBtn.addEventListener('click', () => this.setViewMode('list'));
+        if (el.cardViewBtn && el.listViewBtn) {
+            el.cardViewBtn.addEventListener('click', () => this.setViewMode('card'));
+            el.listViewBtn.addEventListener('click', () => this.setViewMode('list'));
         }
     }
 
     setViewMode(mode) {
         this.state.viewMode = mode;
-        const elements = this.getElements();
+        const el = this.elements;
 
-        if (elements.cardViewBtn) elements.cardViewBtn.classList.toggle('active', mode === 'card');
-        if (elements.listViewBtn) elements.listViewBtn.classList.toggle('active', mode === 'list');
+        el.cardViewBtn?.classList.toggle('active', mode === 'card');
+        el.listViewBtn?.classList.toggle('active', mode === 'list');
 
         this.render();
     }
@@ -161,51 +211,46 @@ class ProjectManager {
      * Rendering Logic
      * ----------------------------------------------------------- */
     render() {
-        const elements = this.getElements();
         if (!this.state.visibilityEngine) return;
 
-        // Sync visibility engine page
-        this.state.visibilityEngine.setPage(this.state.currentPage);
+        const el = this.elements;
 
+        this.state.visibilityEngine.setPage(this.state.currentPage);
         let filtered = this.state.visibilityEngine.getVisibleProjects();
 
         // Sorting
-        const sortMode = elements.sortSelect?.value || 'default';
+        const sortMode = el.sortSelect?.value || 'default';
         if (sortMode === 'az') filtered.sort((a, b) => a.title.localeCompare(b.title));
         else if (sortMode === 'za') filtered.sort((a, b) => b.title.localeCompare(a.title));
         else if (sortMode === 'newest') filtered.reverse();
 
-        // Pagination Calculations
+        // Pagination
         const totalPages = Math.ceil(filtered.length / this.config.ITEMS_PER_PAGE);
         const start = (this.state.currentPage - 1) * this.config.ITEMS_PER_PAGE;
         const pageItems = filtered.slice(start, start + this.config.ITEMS_PER_PAGE);
 
-        // Grid/List visibility management
-        if (elements.projectsGrid) {
-            elements.projectsGrid.style.display = this.state.viewMode === 'card' ? 'grid' : 'none';
-            if (this.state.viewMode !== 'card') elements.projectsGrid.innerHTML = '';
+        // Grid/List display management
+        if (el.projectsGrid) {
+            el.projectsGrid.style.display = this.state.viewMode === 'card' ? 'grid' : 'none';
+            el.projectsGrid.innerHTML = '';
         }
-        if (elements.projectsList) {
-            elements.projectsList.style.display = this.state.viewMode === 'list' ? 'flex' : 'none';
-            if (this.state.viewMode !== 'list') elements.projectsList.innerHTML = '';
+        if (el.projectsList) {
+            el.projectsList.style.display = this.state.viewMode === 'list' ? 'flex' : 'none';
+            el.projectsList.innerHTML = '';
         }
 
-        // Handle empty state
         if (pageItems.length === 0) {
-            if (elements.emptyState) elements.emptyState.style.display = 'block';
-            if (elements.projectsGrid) elements.projectsGrid.innerHTML = '';
-            if (elements.projectsList) elements.projectsList.innerHTML = '';
+            if (el.emptyState) el.emptyState.style.display = 'block';
             this.renderPagination(0);
             return;
         }
 
-        if (elements.emptyState) elements.emptyState.style.display = 'none';
+        if (el.emptyState) el.emptyState.style.display = 'none';
 
-        // Render appropriate view
-        if (this.state.viewMode === 'card') {
-            this.renderCardView(elements.projectsGrid, pageItems);
-        } else {
-            this.renderListView(elements.projectsList, pageItems);
+        if (this.state.viewMode === 'card' && el.projectsGrid) {
+            this.renderCardView(el.projectsGrid, pageItems);
+        } else if (this.state.viewMode === 'list' && el.projectsList) {
+            this.renderListView(el.projectsList, pageItems);
         }
 
         this.renderPagination(totalPages);
@@ -217,7 +262,6 @@ class ProjectManager {
             const techHtml = project.tech?.map(t => `<span>${this.escapeHtml(t)}</span>`).join('') || '';
             const coverStyle = project.coverStyle || '';
             const coverClass = project.coverClass || '';
-
             const sourceUrl = this.getSourceCodeUrl(project.link);
 
             return `
@@ -265,23 +309,21 @@ class ProjectManager {
                         <i class="${this.escapeHtml(project.icon || 'ri-code-s-slash-line')}"></i>
                     </div>
                     <div class="list-card-content">
-                        <h4 class="list-card-title">${this.escapeHtml(project.title)}</h4>
+                        <div class="list-card-header">
+                            <h3 class="list-card-title">${this.escapeHtml(project.title)}</h3>
+                            <span class="category-tag">${this.capitalize(project.category)}</span>
+                        </div>
                         <p class="list-card-description">${this.escapeHtml(project.description || '')}</p>
                     </div>
-                    <div class="list-card-meta">
-                        <span class="list-card-category">${this.capitalize(project.category || 'project')}</span>
-                        <div class="list-card-actions">
-                            <button class="list-card-btn ${isBookmarked ? 'bookmarked' : ''}" 
-                                    onclick="window.toggleProjectBookmark(this, '${this.escapeHtml(project.title)}', '${this.escapeHtml(project.link)}', '${this.escapeHtml(project.category)}', '${this.escapeHtml(project.description || '')}');">
-                                <i class="${isBookmarked ? 'ri-bookmark-fill' : 'ri-bookmark-line'}"></i>
-                            </button>
-                            <a href="${this.escapeHtml(project.link)}" class="list-card-btn" title="Open Project">
-                                <i class="ri-external-link-line"></i>
-                            </a>
-                            <a href="${this.getSourceCodeUrl(project.link)}" target="_blank" class="list-card-btn" title="View Source Code">
-                                <i class="ri-github-fill"></i>
-                            </a>
-                        </div>
+                    <div class="list-card-actions">
+                        <button class="bookmark-btn ${isBookmarked ? 'bookmarked' : ''}"
+                                onclick="window.toggleProjectBookmark(this, '${this.escapeHtml(project.title)}', '${this.escapeHtml(project.link)}', '${this.escapeHtml(project.category)}', '${this.escapeHtml(project.description || '')}');"
+                                title="${isBookmarked ? 'Remove from bookmarks' : 'Add to bookmarks'}">
+                            <i class="${isBookmarked ? 'ri-bookmark-fill' : 'ri-bookmark-line'}"></i>
+                        </button>
+                        <a href="${project.link}" class="view-btn" title="View Project">
+                            <i class="ri-arrow-right-line"></i>
+                        </a>
                     </div>
                 </div>
             `;
@@ -289,141 +331,96 @@ class ProjectManager {
     }
 
     renderPagination(totalPages) {
-        const container = this.getElements().paginationContainer;
-        if (!container || totalPages <= 1) {
-            if (container) container.innerHTML = '';
+        const container = this.elements.paginationContainer;
+        if (!container) return;
+
+        if (totalPages <= 1) {
+            container.innerHTML = '';
             return;
         }
 
-        let html = '';
+        let html = `
+            <button class="pagination-btn" ${this.state.currentPage === 1 ? 'disabled' : ''} 
+                    onclick="window.projectManagerInstance.goToPage(${this.state.currentPage - 1})">
+                <i class="ri-arrow-left-s-line"></i>
+            </button>
+        `;
 
-        // Prev button
-        html += `<button class="pagination-btn" ${this.state.currentPage === 1 ? 'disabled' : ''} id="pagination-prev">
-                    <i class="ri-arrow-left-s-line"></i>
-                 </button>`;
-
-        // Page numbers
         for (let i = 1; i <= totalPages; i++) {
-            if (i === 1 || i === totalPages || (i >= this.state.currentPage - 1 && i <= this.state.currentPage + 1)) {
-                html += `<button class="pagination-btn ${i === this.state.currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
-            } else if (i === this.state.currentPage - 2 || i === this.state.currentPage + 2) {
+            if (i === 1 || i === totalPages || (i >= this.state.currentPage - 2 && i <= this.state.currentPage + 2)) {
+                html += `<button class="pagination-btn ${i === this.state.currentPage ? 'active' : ''}" 
+                         onclick="window.projectManagerInstance.goToPage(${i})">${i}</button>`;
+            } else if (i === this.state.currentPage - 3 || i === this.state.currentPage + 3) {
                 html += `<span class="pagination-dots">...</span>`;
             }
         }
 
-        // Next button
-        html += `<button class="pagination-btn" ${this.state.currentPage === totalPages ? 'disabled' : ''} id="pagination-next">
-                    <i class="ri-arrow-right-s-line"></i>
-                 </button>`;
+        html += `
+            <button class="pagination-btn" ${this.state.currentPage === totalPages ? 'disabled' : ''} 
+                    onclick="window.projectManagerInstance.goToPage(${this.state.currentPage + 1})">
+                <i class="ri-arrow-right-s-line"></i>
+            </button>
+        `;
 
         container.innerHTML = html;
-
-        // Events
-        container.querySelectorAll('[data-page]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.state.currentPage = parseInt(btn.dataset.page);
-                this.render();
-                this.scrollToTop();
-            });
-        });
-
-        const prev = container.querySelector('#pagination-prev');
-        if (prev && !prev.disabled) {
-            prev.addEventListener('click', () => {
-                this.state.currentPage--;
-                this.render();
-                this.scrollToTop();
-            });
-        }
-
-        const next = container.querySelector('#pagination-next');
-        if (next && !next.disabled) {
-            next.addEventListener('click', () => {
-                this.state.currentPage++;
-                this.render();
-                this.scrollToTop();
-            });
-        }
     }
 
-    scrollToTop() {
-        const section = document.getElementById('projects');
-        if (section) {
-            const navbarHeight = 75;
-            window.scrollTo({
-                top: section.offsetTop - navbarHeight,
-                behavior: 'smooth'
-            });
-        }
+    goToPage(page) {
+        this.state.currentPage = page;
+        this.render();
+        document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth' });
     }
 
     /* -----------------------------------------------------------
-     * Utilities
+     * Helper Methods
      * ----------------------------------------------------------- */
-    capitalize(str) {
-        if (!str) return '';
-        return str.charAt(0).toUpperCase() + str.slice(1);
-    }
-
     escapeHtml(str) {
         if (!str) return '';
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    capitalize(str) {
+        return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
     }
 
     getSourceCodeUrl(link) {
-        if (!link) return 'https://github.com/YadavAkhileshh/OpenPlayground';
-
-        let path = link;
-        // Remove leading ./
-        if (path.startsWith('./')) {
-            path = path.slice(2);
+        if (!link) return '#';
+        const folderMatch = link.match(/\.\/projects\/([^/]+)\//);
+        if (folderMatch) {
+            return `https://github.com/YadavAkhileshh/OpenPlayground/tree/main/projects/${encodeURIComponent(folderMatch[1])}`;
         }
-        // Remove trailing /index.html or index.html
-        path = path.replace(/\/index\.html$/, '').replace(/^index\.html$/, '');
-
-        return `https://github.com/YadavAkhileshh/OpenPlayground/tree/main/${path}`;
+        return link;
     }
 }
 
-/**
- * Contributors Fetcher
- */
+/* -----------------------------------------------------------
+ * GitHub Contributors
+ * ----------------------------------------------------------- */
 async function fetchContributors() {
     const grid = document.getElementById('contributors-grid');
     if (!grid) return;
 
     try {
-        const response = await fetch('https://api.github.com/repos/YadavAkhileshh/OpenPlayground/contributors');
-        if (!response.ok) throw new Error('Failed to fetch contributors');
-
+        const response = await fetch('https://api.github.com/repos/YadavAkhileshh/OpenPlayground/contributors?per_page=100');
         const contributors = await response.json();
 
-        // Update count if exists
-        const count = document.getElementById('contributor-count');
-        if (count) count.textContent = `${contributors.length}+`;
+        const humanContributors = contributors.filter(c => !c.login.includes('[bot]'));
 
-        grid.innerHTML = contributors.map(user => `
-            <div class="contributor-card">
-                <img src="${user.avatar_url}" alt="${user.login}" class="contributor-avatar" loading="lazy">
-                <div class="contributor-info">
-                    <h3 class="contributor-name">${user.login}</h3>
-                    <div class="contributor-stats">
-                        <span class="contributor-contributions">
-                            <i class="ri-git-commit-line"></i> ${user.contributions} contributions
-                        </span>
-                    </div>
-                </div>
-                <a href="${user.html_url}" target="_blank" class="contributor-github-link">
-                    <i class="ri-github-fill"></i>
-                </a>
-            </div>
+        grid.innerHTML = humanContributors.map(c => `
+            <a href="${c.html_url}" target="_blank" rel="noopener" class="contributor-card">
+                <img src="${c.avatar_url}" alt="${c.login}" loading="lazy" class="contributor-avatar">
+                <span class="contributor-name">${c.login}</span>
+                <span class="contributor-contributions">${c.contributions} commits</span>
+            </a>
         `).join('');
-
     } catch (error) {
-        console.warn('Contributors Load Error:', error);
-        grid.innerHTML = `<div class="loading-msg">Unable to load contributors.</div>`;
+        console.error('Error fetching contributors:', error);
+        grid.innerHTML = '<p class="error-msg">Unable to load contributors</p>';
     }
 }
 
@@ -436,12 +433,10 @@ window.toggleProjectBookmark = function (btn, title, link, category, description
     const project = { title, link, category, description };
     const isNowBookmarked = window.bookmarksManager.toggleBookmark(project);
 
-    // Update button icon
     const icon = btn.querySelector('i');
     btn.classList.toggle('bookmarked', isNowBookmarked);
     if (icon) icon.className = isNowBookmarked ? 'ri-bookmark-fill' : 'ri-bookmark-line';
 
-    // Show toast
     showToast(isNowBookmarked ? 'Added to bookmarks' : 'Removed from bookmarks');
 };
 
@@ -465,7 +460,6 @@ function showToast(message) {
 // Global Initialization
 // ===============================
 
-// Expose to global scope for components.js compatibility
 window.ProjectManager = ProjectManager;
 window.fetchContributors = fetchContributors;
 
