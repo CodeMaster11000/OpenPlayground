@@ -1292,6 +1292,12 @@
       "folder": "color-blindness-checker",
       "path": "./projects/color-blindness-checker/project.json",
       "link": "./projects/color-blindness-checker/index.html"
+    },
+    {
+      "folder": "evoshapes",
+      "path": "./projects/evoshapes/project.json",
+      "link": "./projects/evoshapes/index.html"
     }
+
   ]
 }
