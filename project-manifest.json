@@ -1552,6 +1552,11 @@
       "folder": "WorldMeetingPlanner",
       "path": "./projects/WorldMeetingPlanner/project.json",
       "link": "./projects/WorldMeetingPlanner/index.html"
+    },
+     {
+      "folder": "WorldMeetingPlanner",
+      "path": "./projects/WorldMeetingPlanner/project.json",
+      "link": "./projects/WorldMeetingPlanner/index.html"
     }
   ]
 }
