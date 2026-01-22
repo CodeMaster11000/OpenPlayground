@@ -5755,5 +5755,21 @@
 "coverStyle": "background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #020617 100%); color: #e5e7eb;"
 }
   "coverStyle": "background: linear-gradient(135deg, #141e30 0%, #243b55 100%); color: white;"
+  },
+
+  {
+    "title": "Drunken Walk Simulation",
+    "category": "experimental",
+    "difficulty": "Beginner",
+    "description": "A generative art simulation that visualizes the classic Drunken Walk algorithm, producing organic and unpredictable paths using randomness on an HTML canvas.",
+    "tech": [
+      "HTML",
+      "CSS",
+      "JavaScript"
+    ],
+    "link": "./projects/drunken-walk-simulation/index.html",
+    "icon": "ri-shuffle-line",
+    "coverStyle": "background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); color: white;"
   }
+  
 ]
