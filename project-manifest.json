@@ -1562,6 +1562,11 @@
       "folder": "WorldMeetingPlanner",
       "path": "./projects/WorldMeetingPlanner/project.json",
       "link": "./projects/WorldMeetingPlanner/index.html"
+    },
+     {
+      "folder": "voice-forge",
+      "path": "./projects/voice-forge/project.json",
+      "link": "./projects/voice-forge/index.html"
     }
   ]
 }
