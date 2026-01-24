@@ -14,6 +14,16 @@
       "link": "./projects/2048-puzzle/index.html"
     },
     {
+      "folder": "Attention Garden",
+      "path": "./projects/AttentionGarden/project.json",
+      "link": "./projects/AttentionGarden/index.html"
+    },
+    {
+      "folder": "MinimalSurvival",
+      "path": "./projects/MinimalSurvival/project.json",
+      "link": "./projects/MinimalSurvival/index.html"
+    },
+    {
       "folder": "365Days",
       "path": "./projects/365Days/project.json",
       "link": "./projects/365Days/index.html"
@@ -327,6 +337,11 @@
       "folder": "Daily-Randomizer",
       "path": "./projects/Daily-Randomizer/project.json",
       "link": "./projects/Daily-Randomizer/index.html"
+    },
+        {
+      "folder": "living-typrography",
+      "path": "./projects/living-typrography/project.json",
+      "link": "./projects/living-typrography/index.html"
     },
     {
       "folder": "DailyAffirmationCard",
@@ -1749,6 +1764,7 @@
       "link": "./projects/flownet/index.html"
     },
     {
+     {
       "folder": "voice-forge",
       "path": "./projects/voice-forge/project.json",
       "link": "./projects/voice-forge/index.html"
@@ -1762,6 +1778,14 @@
       "folder": "Harmonicajs",
       "path": "./projects/harmonicjs/project.json",
       "link": "./projects/harmonicjs/index.html"
+      "folder": "AsciiForge",
+      "path": "./projects/AsciiForge/project.json",
+      "link": "./projects/AsciiForge/index.html"
+    }
+    {
+      "folder": "MyFolio",
+      "path": "./projects/MyFolio/project.json",
+      "link": "./projects/MyFolio/index.html"
     }
   ]
 }
