@@ -1735,5 +1735,11 @@
       "path": "./projects/Digital Mood Landscape/project.json",
       "link": "./projects/Digital Mood Landscape/index.html"
     }
+    {
+      "folder": "snake world",
+      "path": "./projects/snake world/project.json",
+      "link": "./projects/snake world/index.html"
+     
+    }
   ]
 }
