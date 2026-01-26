@@ -1867,6 +1867,11 @@
       "folder": "aesthetic-quote-generator",
       "path": "./projects/aesthetic-quote-generator/project.json",
       "link": "./projects/aesthetic-quote-generator/index.html"
+    },
+    {
+      "folder": "mousetone",
+      "path": "./projects/mousetone/project.json",
+      "link": "./projects/mousetone/index.html"
     }
   ]
 }
