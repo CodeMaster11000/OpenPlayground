@@ -1,9 +1,11 @@
 // ===============================
 // OpenPlayground - Unified App Logic
+// Feature #1291: Added Analytics Engine Integration
 // ===============================
 
 import { ProjectVisibilityEngine } from "./core/projectVisibilityEngine.js";
 import { keyevents } from "./core/Shortcut.js"
+import notificationManager from "./core/notificationManager.js";
 
 class ProjectManager {
     constructor() {
@@ -27,6 +29,8 @@ class ProjectManager {
         };
 
         this.elements = null;
+        this.analyticsEngine = window.analyticsEngine || null;
+        this.viewportObserver = null; // For tracking card views
         window.projectManagerInstance = this;
     }
 
@@ -39,9 +43,60 @@ class ProjectManager {
         this.elements = this.getElements();
         this.setupEventListeners();
         await this.fetchProjects();
+        
+        // Initialize analytics integration
+        this.initializeAnalytics();
+        
+        // Setup viewport observer for tracking card views
+        this.setupViewportObserver();
 
         this.state.initialized = true;
         console.log("✅ ProjectManager: Ready.");
+    }
+    
+    /**
+     * Initialize analytics engine integration
+     */
+    initializeAnalytics() {
+        // Get analytics engine from global scope
+        this.analyticsEngine = window.analyticsEngine || null;
+        
+        if (this.analyticsEngine && this.state.visibilityEngine) {
+            // Connect analytics to visibility engine
+            this.state.visibilityEngine.setAnalyticsEngine(this.analyticsEngine);
+            console.log("📊 Analytics Engine connected to ProjectManager");
+        }
+    }
+    
+    /**
+     * Setup IntersectionObserver for tracking card views
+     */
+    setupViewportObserver() {
+        if (!this.analyticsEngine) return;
+        
+        this.viewportObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const projectId = entry.target.dataset.projectId;
+                    if (projectId) {
+                        this.analyticsEngine.trackView(projectId);
+                    }
+                }
+            });
+        }, { threshold: 0.5 }); // 50% visible
+    }
+    
+    /**
+     * Track project click for analytics
+     */
+    trackProjectClick(project) {
+        if (!this.analyticsEngine) return;
+        
+        const projectId = project.folder || project.name || project.title;
+        this.analyticsEngine.trackClick(projectId, {
+            category: project.category,
+            title: project.title
+        });
     }
 
     /* -----------------------------------------------------------
@@ -94,6 +149,9 @@ class ProjectManager {
 
             this.state.visibilityEngine = new ProjectVisibilityEngine(this.state.allProjects);
             this.state.visibilityEngine.state.itemsPerPage = this.config.ITEMS_PER_PAGE;
+
+            // Load state from URL after engine is ready
+            this.loadURLState();
 
             console.log(`📦 Loaded ${this.state.allProjects.length} projects.`);
             this.render();
@@ -202,12 +260,10 @@ class ProjectManager {
         if (el.filterBtns) {
             el.filterBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
-                    el.filterBtns.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-
                     const filter = btn.dataset.filter;
-                    this.state.visibilityEngine?.setCategory(filter);
+                    this.state.visibilityEngine?.toggleCategory(filter);
                     this.state.currentPage = 1;
+                    this.updateFilterUI();
                     this.render();
                 });
             });
@@ -319,13 +375,13 @@ class ProjectManager {
         const el = this.elements;
 
         this.state.visibilityEngine.setPage(this.state.currentPage);
-        let filtered = this.state.visibilityEngine.getVisibleProjects();
-
-        // Sorting
+        
+        // Get sort mode and set in visibility engine
         const sortMode = el.sortSelect?.value || 'default';
-        if (sortMode === 'az') filtered.sort((a, b) => a.title.localeCompare(b.title));
-        else if (sortMode === 'za') filtered.sort((a, b) => b.title.localeCompare(a.title));
-        else if (sortMode === 'newest') filtered.reverse();
+        this.state.visibilityEngine.setSortMode(sortMode);
+        
+        // Get filtered and sorted projects from visibility engine
+        let filtered = this.state.visibilityEngine.getVisibleProjects();
 
         // Pagination
         const totalPages = Math.ceil(filtered.length / this.config.ITEMS_PER_PAGE);
@@ -357,19 +413,61 @@ class ProjectManager {
         }
 
         this.renderPagination(totalPages);
+        
+        // Setup viewport tracking for newly rendered cards
+        this.observeProjectCards();
+    }
+    
+    /**
+     * Observe project cards for viewport tracking
+     */
+    observeProjectCards() {
+        if (!this.viewportObserver) return;
+        
+        // Disconnect previous observations
+        this.viewportObserver.disconnect();
+        
+        // Observe all project cards
+        const cards = document.querySelectorAll('.card[data-project-id], .list-card[data-project-id]');
+        cards.forEach(card => {
+            this.viewportObserver.observe(card);
+        });
+    }
+    
+    /**
+     * Get badge HTML for a project
+     */
+    getProjectBadgeHtml(project) {
+        if (!this.analyticsEngine) return '';
+        
+        const projectId = project.folder || project.name || project.title;
+        const badge = this.analyticsEngine.getProjectBadge(projectId);
+        
+        if (!badge) return '';
+        
+        return `<span class="project-badge ${badge.class}">${badge.label}</span>`;
     }
 
     renderCardView(container, projects) {
         container.innerHTML = projects.map((project) => {
             const isBookmarked = window.bookmarksManager?.isBookmarked(project.title);
+            const isCompareSelected = window.comparisonEngine?.isSelected(project) || false;
             const techHtml = project.tech?.map(t => `<span>${this.escapeHtml(t)}</span>`).join('') || '';
             const coverStyle = project.coverStyle || '';
             const coverClass = project.coverClass || '';
             const sourceUrl = this.getSourceCodeUrl(project.link);
+            const projectJson = JSON.stringify(project).replace(/'/g, "\\'");
 
             return `
-                <div class="card" data-category="${this.escapeHtml(project.category)}" onclick="window.location.href='${this.escapeHtml(project.link)}'; event.stopPropagation();">
+                <div class="card ${isCompareSelected ? 'compare-selected' : ''}" data-category="${this.escapeHtml(project.category)}" onclick="window.location.href='${this.escapeHtml(project.link)}'; event.stopPropagation();">
                     <div class="card-actions">
+                        <label class="compare-checkbox-wrapper" title="Add to comparison" onclick="event.stopPropagation();">
+                            <input type="checkbox" class="compare-checkbox" 
+                                   data-project-title="${this.escapeHtml(project.title)}"
+                                   ${isCompareSelected ? 'checked' : ''}
+                                   onchange="window.handleCompareToggle(this, '${projectJson}')">
+                            <span class="compare-checkmark"><i class="ri-git-compare-line"></i></span>
+                        </label>
                         <button class="bookmark-btn ${isBookmarked ? 'bookmarked' : ''}" 
                                 data-project-title="${this.escapeHtml(project.title)}" 
                                 onclick="event.preventDefault(); event.stopPropagation(); window.toggleProjectBookmark(this, '${this.escapeHtml(project.title)}', '${this.escapeHtml(project.link)}', '${this.escapeHtml(project.category)}', '${this.escapeHtml(project.description || '')}');"
@@ -381,6 +479,11 @@ class ProjectManager {
                            title="View Source Code">
                             <i class="ri-github-fill"></i>
                         </a>
+                        <button class="view-insights-btn"
+                                onclick="event.preventDefault(); event.stopPropagation(); window.openInsightsPanel('${this.escapeHtml(project.title)}');"
+                                title="View Community Insights">
+                            <i class="ri-lightbulb-line"></i>
+                        </button>
                     </div>
                     <div class="card-link">
                         <div class="card-cover ${coverClass}" style="${coverStyle}">
@@ -399,32 +502,61 @@ class ProjectManager {
             `;
         }).join('');
     }
+    
+    /**
+     * Handle project card click with analytics tracking
+     */
+    handleProjectClick(event, project) {
+        event.stopPropagation();
+        
+        // Track the click
+        this.trackProjectClick(project);
+        
+        // Navigate to project
+        window.location.href = project.link;
+    }
 
     renderListView(container, projects) {
         container.innerHTML = projects.map(project => {
             const isBookmarked = window.bookmarksManager?.isBookmarked(project.title);
+            const isCompareSelected = window.comparisonEngine?.isSelected(project) || false;
             const coverStyle = project.coverStyle || '';
             const coverClass = project.coverClass || '';
+            const projectJson = JSON.stringify(project).replace(/'/g, "\\'");
 
             return `
-                <div class="list-card">
+                <div class="list-card ${isCompareSelected ? 'compare-selected' : ''}">
+                    <label class="compare-checkbox-wrapper list-compare" title="Add to comparison">
+                        <input type="checkbox" class="compare-checkbox" 
+                               data-project-title="${this.escapeHtml(project.title)}"
+                               ${isCompareSelected ? 'checked' : ''}
+                               onchange="window.handleCompareToggle(this, '${projectJson}')">
+                        <span class="compare-checkmark"><i class="ri-git-compare-line"></i></span>
+                    </label>
                     <div class="list-card-icon ${coverClass}" style="${coverStyle}">
                         <i class="${this.escapeHtml(project.icon || 'ri-code-s-slash-line')}"></i>
                     </div>
                     <div class="list-card-content">
                         <div class="list-card-header">
                             <h3 class="list-card-title">${this.escapeHtml(project.title)}</h3>
+                            ${badgeHtml}
                             <span class="category-tag">${this.capitalize(project.category)}</span>
                         </div>
                         <p class="list-card-description">${this.escapeHtml(project.description || '')}</p>
                     </div>
                     <div class="list-card-actions">
+                        <button class="collection-btn ${isBookmarked ? 'visible' : ''}"
+                                onclick="window.showCollectionDropdown(this, '${this.escapeHtml(project.title)}', '${this.escapeHtml(project.link)}', '${this.escapeHtml(project.category)}', '${this.escapeHtml(project.description || '')}');"
+                                title="Add to Collection">
+                            <i class="ri-folder-add-line"></i>
+                        </button>
                         <button class="bookmark-btn ${isBookmarked ? 'bookmarked' : ''}"
                                 onclick="window.toggleProjectBookmark(this, '${this.escapeHtml(project.title)}', '${this.escapeHtml(project.link)}', '${this.escapeHtml(project.category)}', '${this.escapeHtml(project.description || '')}');"
                                 title="${isBookmarked ? 'Remove from bookmarks' : 'Add to bookmarks'}">
                             <i class="${isBookmarked ? 'ri-bookmark-fill' : 'ri-bookmark-line'}"></i>
                         </button>
-                        <a href="${project.link}" class="view-btn" title="View Project">
+                        <a href="${project.link}" class="view-btn" title="View Project"
+                           onclick="window.projectManagerInstance.trackProjectClick(${JSON.stringify(project).replace(/"/g, '&quot;')})">
                             <i class="ri-arrow-right-line"></i>
                         </a>
                     </div>
@@ -499,6 +631,86 @@ class ProjectManager {
         }
         return link;
     }
+
+    /* -----------------------------------------------------------
+     * Multi-Filter and URL Persistence Logic
+     * ----------------------------------------------------------- */
+    updateFilterUI() {
+        const activeCategories = this.state.visibilityEngine.state.categories;
+        const el = this.elements;
+
+        if (!el.filterBtns) return;
+
+        el.filterBtns.forEach(btn => {
+            const filter = btn.dataset.filter.toLowerCase();
+            const isActive = activeCategories.has(filter);
+            btn.classList.toggle('active', isActive);
+        });
+    }
+
+    syncURLState() {
+        const engine = this.state.visibilityEngine;
+        if (!engine) return;
+
+        const params = new URLSearchParams(window.location.search);
+
+        // Search
+        if (engine.state.searchQuery) params.set('search', engine.state.searchQuery);
+        else params.delete('search');
+
+        // Categories
+        const cats = Array.from(engine.state.categories);
+        if (cats.length > 0 && !cats.includes('all')) {
+            params.set('cats', cats.join(','));
+        } else {
+            params.delete('cats');
+        }
+
+        // Page
+        if (this.state.currentPage > 1) params.set('page', this.state.currentPage);
+        else params.delete('page');
+
+        // View Mode
+        if (this.state.viewMode !== 'card') params.set('view', this.state.viewMode);
+        else params.delete('view');
+
+        const newRelativePathQuery = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        window.history.replaceState({ path: newRelativePathQuery }, '', newRelativePathQuery);
+    }
+
+    loadURLState() {
+        const params = new URLSearchParams(window.location.search);
+        const engine = this.state.visibilityEngine;
+        if (!engine) return;
+
+        // Search
+        const search = params.get('search');
+        if (search) {
+            engine.setSearchQuery(search);
+            if (this.elements.searchInput) this.elements.searchInput.value = search;
+        }
+
+        // Categories
+        const cats = params.get('cats');
+        if (cats) {
+            engine.state.categories.clear();
+            cats.split(',').forEach(c => engine.state.categories.add(c.toLowerCase()));
+            this.updateFilterUI();
+        }
+
+        // Page
+        const page = parseInt(params.get('page'));
+        if (page && !isNaN(page)) this.state.currentPage = page;
+
+        // View Mode
+        const view = params.get('view');
+        if (view === 'list' || view === 'card') {
+            this.state.viewMode = view;
+            const el = this.elements;
+            el.cardViewBtn?.classList.toggle('active', view === 'card');
+            el.listViewBtn?.classList.toggle('active', view === 'list');
+        }
+    }
 }
 
 /* -----------------------------------------------------------
@@ -540,24 +752,208 @@ window.toggleProjectBookmark = function (btn, title, link, category, description
     btn.classList.toggle('bookmarked', isNowBookmarked);
     if (icon) icon.className = isNowBookmarked ? 'ri-bookmark-fill' : 'ri-bookmark-line';
 
+    // Track bookmark in analytics
+    if (window.analyticsEngine) {
+        window.analyticsEngine.trackBookmark(title, isNowBookmarked);
+    }
+
     showToast(isNowBookmarked ? 'Added to bookmarks' : 'Removed from bookmarks');
 };
 
-function showToast(message) {
-    const existing = document.querySelector('.bookmark-toast');
-    if (existing) existing.remove();
-
-    const toast = document.createElement('div');
-    toast.className = 'bookmark-toast';
-    toast.innerHTML = `<i class="ri-bookmark-fill"></i><span>${message}</span>`;
-    document.body.appendChild(toast);
-
-    setTimeout(() => toast.classList.add('show'), 10);
+/**
+ * Global Collection Dropdown Function
+ */
+window.showCollectionDropdown = function (btn, title, link, category, description) {
+    if (!window.bookmarksManager) return;
+    
+    // Ensure project is bookmarked first
+    const project = { title, link, category, description };
+    if (!window.bookmarksManager.isBookmarked(title)) {
+        window.bookmarksManager.addBookmark(project);
+        
+        // Update bookmark button state
+        const card = btn.closest('.card, .list-card');
+        if (card) {
+            const bookmarkBtn = card.querySelector('.bookmark-btn');
+            if (bookmarkBtn) {
+                bookmarkBtn.classList.add('bookmarked');
+                const icon = bookmarkBtn.querySelector('i');
+                if (icon) icon.className = 'ri-bookmark-fill';
+            }
+        }
+        
+        notificationManager.success('Added to bookmarks');
+    }
+    
+    // Remove any existing dropdown
+    const existingDropdown = document.querySelector('.collection-dropdown');
+    if (existingDropdown) {
+        existingDropdown.remove();
+    }
+    
+    const collections = window.bookmarksManager.getAllCollections();
+    const projectCollections = window.bookmarksManager.getProjectCollections(title);
+    
+    const dropdown = document.createElement('div');
+    dropdown.className = 'collection-dropdown';
+    
+    const escapeHtml = (str) => {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    };
+    
+    const escapeHtmlAttr = (str) => {
+        if (!str) return '';
+        return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+    
+    let collectionsHtml = collections.map(collection => {
+        const isInCollection = projectCollections.some(c => c.id === collection.id);
+        return `
+            <button class="collection-dropdown-item ${isInCollection ? 'in-collection' : ''}" 
+                    data-collection-id="${collection.id}"
+                    data-project-title="${escapeHtmlAttr(title)}">
+                <i class="${collection.icon}" style="color: ${collection.color}"></i>
+                <span>${escapeHtml(collection.name)}</span>
+                ${isInCollection ? '<i class="ri-check-line check-icon"></i>' : ''}
+            </button>
+        `;
+    }).join('');
+    
+    dropdown.innerHTML = `
+        <div class="collection-dropdown-header">
+            <span>Add to Collection</span>
+        </div>
+        <div class="collection-dropdown-list">
+            ${collectionsHtml}
+        </div>
+        <div class="collection-dropdown-footer">
+            <button class="collection-dropdown-create">
+                <i class="ri-add-line"></i>
+                <span>New Collection</span>
+            </button>
+        </div>
+    `;
+    
+    // Position the dropdown
+    const rect = btn.getBoundingClientRect();
+    dropdown.style.position = 'fixed';
+    dropdown.style.top = `${rect.bottom + 8}px`;
+    dropdown.style.left = `${Math.min(rect.left, window.innerWidth - 220)}px`;
+    dropdown.style.zIndex = '10001';
+    
+    document.body.appendChild(dropdown);
+    
+    // Handle collection item clicks
+    dropdown.querySelectorAll('.collection-dropdown-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const collectionId = item.dataset.collectionId;
+            const projectTitle = item.dataset.projectTitle;
+            
+            if (item.classList.contains('in-collection')) {
+                window.bookmarksManager.removeFromCollection(projectTitle, collectionId);
+                item.classList.remove('in-collection');
+                item.querySelector('.check-icon')?.remove();
+                notificationManager.success('Removed from collection');
+            } else {
+                window.bookmarksManager.addToCollection(projectTitle, collectionId);
+                item.classList.add('in-collection');
+                const checkIcon = document.createElement('i');
+                checkIcon.className = 'ri-check-line check-icon';
+                item.appendChild(checkIcon);
+                notificationManager.success('Added to collection');
+            }
+        });
+    });
+    
+    // Handle create collection button
+    dropdown.querySelector('.collection-dropdown-create').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropdown.remove();
+        if (window.showCreateCollectionModal) {
+            window.showCreateCollectionModal(title);
+        }
+    });
+    
+    // Close dropdown when clicking outside
+    const closeDropdown = (e) => {
+        if (!dropdown.contains(e.target) && e.target !== btn) {
+            dropdown.remove();
+            document.removeEventListener('click', closeDropdown);
+        }
+    };
+    
     setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 2000);
-}
+        document.addEventListener('click', closeDropdown);
+    }, 0);
+};
+
+// Toast notifications are now handled by NotificationManager
+
+/**
+ * Global Sandbox Preview Handler
+ * Feature #1334: Project Playground Sandbox & Live Preview
+ */
+window.openSandboxPreview = function(btn) {
+    if (!window.sandboxEngine) {
+        console.warn('Sandbox engine not loaded');
+        return;
+    }
+    
+    try {
+        const projectData = btn.dataset.project;
+        if (projectData) {
+            const project = JSON.parse(projectData);
+            window.sandboxEngine.open(project);
+        }
+    } catch (e) {
+        console.error('Failed to open sandbox preview:', e);
+    }
+};
+
+/**
+ * Global Compare Toggle Handler
+ * Feature #1333: Project Comparison
+ */
+window.handleCompareToggle = function(checkbox, projectJson) {
+    if (!window.comparisonEngine) {
+        console.warn('Comparison engine not loaded');
+        return;
+    }
+    
+    try {
+        const project = JSON.parse(projectJson);
+        const isSelected = window.comparisonEngine.toggleSelection(project);
+        
+        // Update card visual state
+        const card = checkbox.closest('.card, .list-card');
+        if (card) {
+            card.classList.toggle('compare-selected', isSelected);
+        }
+    } catch (e) {
+        console.error('Failed to toggle comparison:', e);
+    }
+};
+
+// Listen for comparison updates to re-render if needed
+document.addEventListener('comparisonUpdated', (e) => {
+    // Update all compare checkboxes
+    document.querySelectorAll('.compare-checkbox').forEach(checkbox => {
+        const title = checkbox.dataset.projectTitle;
+        const isSelected = e.detail.projects.some(p => p.title === title);
+        checkbox.checked = isSelected;
+        const card = checkbox.closest('.card, .list-card');
+        if (card) {
+            card.classList.toggle('compare-selected', isSelected);
+        }
+    });
+});
 
 // ===============================
 // Global Initialization
@@ -588,16 +984,29 @@ document.addEventListener('componentLoaded', (e) => {
     }
 });
 
+// Initialize Command Palette
+let commandPalette = null;
+function initCommandPalette() {
+    const manager = window.projectManagerInstance;
+    if (manager && !commandPalette) {
+        commandPalette = new CommandPalette(manager);
+        keyevents(commandPalette); // Pass command palette instance to keyboard handler
+        console.log("✨ Command Palette initialized");
+    }
+}
+
 // Also check immediately in case components already loaded (module timing issue)
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        keyevents();
+        initCommandPalette();
         setTimeout(initProjectManager, 100); // Small delay to ensure components are ready
+        setTimeout(checkInsightDeepLink, 600); // Check for insight deep links
     });
 } else {
     // DOM already loaded
-    keyevents();
+    initCommandPalette();
     setTimeout(initProjectManager, 100);
+    setTimeout(checkInsightDeepLink, 600);
 }
 
 // Fade-in animation observer
