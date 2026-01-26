@@ -1,8 +1,3 @@
-/**
- * Create missing project.json files for projects without them
- * Run: node scripts/create-missing-jsons.js
- */
-
 const fs = require('fs');
 const path = require('path');
 
@@ -38,6 +33,25 @@ const categoryStyles = {
     communication: 'background: linear-gradient(135deg, #5ee7df 0%, #b490ca 100%); color: white;'
 };
 
+/**
+ * Find index.html recursively within a folder
+ */
+function findIndexHtml(dir) {
+    const files = fs.readdirSync(dir);
+    if (files.includes('index.html')) return 'index.html';
+
+    const commonDirs = ['public', 'frontend', 'dist', 'src'];
+    for (const d of commonDirs) {
+        const subPath = path.join(dir, d);
+        if (fs.existsSync(subPath) && fs.statSync(subPath).isDirectory()) {
+            if (fs.existsSync(path.join(subPath, 'index.html'))) {
+                return path.join(d, 'index.html');
+            }
+        }
+    }
+    return null;
+}
+
 function detectCategory(folderName) {
     const name = folderName.toLowerCase();
     for (const [category, keywords] of Object.entries(categoryKeywords)) {
@@ -70,10 +84,10 @@ let skipped = 0;
 folders.forEach(folder => {
     const folderPath = path.join(PROJECTS_DIR, folder);
     const jsonPath = path.join(folderPath, 'project.json');
-    const indexPath = path.join(folderPath, 'index.html');
+    const indexRelativePath = findIndexHtml(folderPath);
 
-    // Skip if no index.html
-    if (!fs.existsSync(indexPath)) {
+    // Skip if no index.html found in common locations
+    if (!indexRelativePath) {
         skipped++;
         return;
     }
@@ -82,10 +96,8 @@ folders.forEach(folder => {
     if (fs.existsSync(jsonPath)) {
         try {
             JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-            return; // Valid JSON exists
-        } catch {
-            // Invalid JSON, recreate it
-        }
+            return;
+        } catch { }
     }
 
     const category = detectCategory(folder);
@@ -106,4 +118,4 @@ folders.forEach(folder => {
 
 console.log(`\n🎉 Done!`);
 console.log(`   Created: ${created} project.json files`);
-console.log(`   Skipped: ${skipped} folders (no index.html)`);
+console.log(`   Skipped: ${skipped} folders (no index.html found)`);
