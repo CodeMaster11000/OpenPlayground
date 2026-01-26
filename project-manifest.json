@@ -1857,11 +1857,6 @@
       "folder": "WorldMeetingPlanner",
       "path": "./projects/WorldMeetingPlanner/project.json",
       "link": "./projects/WorldMeetingPlanner/index.html"
-    },
-    {
-      "folder": "ip-nomad",
-      "path": "./projects/ip-nomad/project.json",
-      "link": "./projects/ip-nomad/index.html"
     }
   ]
 }
